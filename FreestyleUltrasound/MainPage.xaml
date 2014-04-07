@@ -83,14 +83,37 @@
                     <Flyout x:Name="WorklistFlyout">
                         <Grid>
                             <Grid.RowDefinitions>
-                                <RowDefinition Height="75" />
-                                <RowDefinition Height="75" />
-                                <RowDefinition Height="75" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="400" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Add New Worklist Item" />
+                            <TextBlock Text="Add New Worklist Item" FontSize="20" />
+                            <Grid Grid.Row="1" >
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="4*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Row="0" Text="First Name" FontSize="15" />
+                                <TextBlock Grid.Row="1" Text="Last Name" FontSize="15" />
+                                <TextBlock Grid.Row="2" Text="ID" FontSize="15" />
+                                <TextBlock Grid.Row="3" Text="Gender" FontSize="15" />
+                                <TextBlock Grid.Row="4" Text="Birthdate" FontSize="15" />
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="FirstNameBox" />
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="LastNameBox" />
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="IDBox" />
+                                <DatePicker Grid.Row="4" Grid.Column="1" />
+                            </Grid>
+                            <Button Grid.Row="2" x:Name="SaveWorklistButton" HorizontalAlignment="Right" Content="Save To Worklist" />
                         </Grid>
                     </Flyout>
                 </AppBarButton>
