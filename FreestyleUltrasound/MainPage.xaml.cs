@@ -30,8 +30,10 @@ namespace FreestyleUltrasound
     public sealed partial class MainPage : Page
     {
         StreamSocket socket;
-        DataReader reader;
-        DataWriter writer;
+        DataReader StudyListReader;
+        DataWriter StudyListWriter;
+        DataReader AllImagesReader;
+        DataWriter AllImagesWriter;
         StringBuilder sb = new StringBuilder();
         List<BitmapImage> currentImages = new List<BitmapImage>();
         BitmapImage currentImage = new BitmapImage();
@@ -40,13 +42,15 @@ namespace FreestyleUltrasound
         uint counter = 0;
         bool ShouldStudyListKeepLooping = true;
         bool ShouldAllImagesKeepLooping = true;
+        bool IsGettingImages = false;
         
         public MainPage()
         {
             this.InitializeComponent();
 
             //FreestyleFinder();
-            Connect();
+            //Connect();
+            LoadDeviceList();
         }
 
         private void FreestyleFinder()
@@ -59,10 +63,9 @@ namespace FreestyleUltrasound
             try
             {
                 socket = new StreamSocket();
-                HostName hostname = new HostName("192.168.1.23");
+                HostName hostname = new HostName(App.settings.Values["deviceaddress"].ToString());
                 await socket.ConnectAsync(hostname, "5104");
-
-                SendStudyListCommand();
+                DeviceTitle.Text = App.settings.Values["devicename"].ToString() + " (" + App.settings.Values["deviceaddress"].ToString() + ")";
             }
             catch (Exception ex)
             {
@@ -73,14 +76,13 @@ namespace FreestyleUltrasound
 
         private async void SendStudyListCommand()
         {
-            reader = new DataReader(socket.InputStream);
-            reader.UnicodeEncoding = Windows.Storage.Streams.UnicodeEncoding.Utf8;
-            writer = new DataWriter(socket.OutputStream);
+            StudyListReader = new DataReader(socket.InputStream);
+            StudyListWriter = new DataWriter(socket.OutputStream);
 
-            writer.WriteString("STUDYLIST\n");
-            await writer.StoreAsync();
+            StudyListWriter.WriteString("STUDYLIST\n");
+            await StudyListWriter.StoreAsync();
 
-            reader.InputStreamOptions = InputStreamOptions.Partial;
+            StudyListReader.InputStreamOptions = InputStreamOptions.Partial;
 
 
             while (ShouldStudyListKeepLooping)
@@ -98,10 +100,10 @@ namespace FreestyleUltrasound
         {
             try
             {
-                IAsyncOperation<uint> task = reader.LoadAsync(1024);
+                IAsyncOperation<uint> task = StudyListReader.LoadAsync(1024);
                 task.AsTask().Wait();
                 counter = task.GetResults();
-                sb.Append(reader.ReadString(counter));
+                sb.Append(StudyListReader.ReadString(counter));
             }
             catch (Exception ex)
             {
@@ -140,43 +142,56 @@ namespace FreestyleUltrasound
 
         private async void SendAllImagesCommand(Study study)
         {
-            reader = new DataReader(socket.InputStream);
-            writer = new DataWriter(socket.OutputStream);
-
-            writer.WriteString("ALLIMAGES " + study.StudyInstanceUID + "\n");
-            await writer.StoreAsync();
-
-            reader.InputStreamOptions = InputStreamOptions.Partial;
-
-
-            while (ShouldAllImagesKeepLooping)
+            currentImages = new List<BitmapImage>();
+            if (!IsGettingImages)
             {
-                string header = GetAllImagesHeader();
-                imagebytearray = new byte[0];
-                string imagename = header.Substring(0, 8);
-                currentbytes = UInt32.Parse(header.Substring(8, 8).ToString(), System.Globalization.NumberStyles.HexNumber);
+                IsGettingImages = true;
+                AllImagesReader = new DataReader(socket.InputStream);
+                AllImagesWriter = new DataWriter(socket.OutputStream);
 
-                while (currentbytes > 0)
+                AllImagesWriter.WriteString("ALLIMAGES " + study.StudyInstanceUID + "\n");
+                await AllImagesWriter.StoreAsync();
+
+                AllImagesReader.InputStreamOptions = InputStreamOptions.Partial;
+
+
+                while (ShouldAllImagesKeepLooping)
                 {
-                    currentbytes = GetAllImagesData(currentbytes);
+                    string header = GetAllImagesHeader();
+                    imagebytearray = new byte[0];
+                    string imagename = header.Substring(0, 8);
+                    currentbytes = UInt32.Parse(header.Substring(8, 8).ToString(), System.Globalization.NumberStyles.HexNumber);
+
+                    if (imagename.Contains(".jpg"))
+                    {
+                        while ((currentbytes > 0) && (ShouldAllImagesKeepLooping))
+                        {
+                            currentbytes = GetAllImagesData(currentbytes);
+                        }
+
+                        if (imagename.Contains(".mov"))
+                        {
+
+                        }
+                        else if (imagename.Contains(".jpg"))
+                        {
+                            ByteArrayToBitmapImage(imagebytearray);
+                            currentImages.Add(currentImage);
+                        }
+                    }
+                    else
+                    {
+                        ShouldAllImagesKeepLooping = false;
+                    }
                 }
 
-                if (header.Contains(".mov"))
+                if (ErrorBox.Text == String.Empty)
                 {
-
-                }
-                else if (header.Contains(".jpg"))
-                {
-                    ByteArrayToBitmapImage(imagebytearray);
-                    currentImages.Add(currentImage);
+                    ShowAllImagesData();
+                    ShouldAllImagesKeepLooping = true;
                 }
 
-                
-            }
-
-            if (ErrorBox.Text == String.Empty)
-            {
-                ShowAllImagesData();
+                IsGettingImages = false;
             }
         }
 
@@ -199,10 +214,10 @@ namespace FreestyleUltrasound
             
             try
             {
-                IAsyncOperation<uint> task = reader.LoadAsync(16);
+                IAsyncOperation<uint> task = AllImagesReader.LoadAsync(16);
                 task.AsTask().Wait();
                 counter = task.GetResults();
-                header = reader.ReadString(counter);
+                header = AllImagesReader.ReadString(counter);
             }
             catch (Exception ex)
             {
@@ -222,11 +237,11 @@ namespace FreestyleUltrasound
             {
                 uint x = 16384;
                 if (currentbytes < x) x = currentbytes;
-                IAsyncOperation<uint> task = reader.LoadAsync(x);
+                IAsyncOperation<uint> task = AllImagesReader.LoadAsync(x);
                 task.AsTask().Wait();
                 bytecounter = task.GetResults();
                 y = new byte[bytecounter];
-                reader.ReadBytes(y);
+                AllImagesReader.ReadBytes(y);
                 imagebytearray = MergeByteArrays(imagebytearray, y);
             }
             catch (Exception ex)
@@ -259,6 +274,59 @@ namespace FreestyleUltrasound
             stream.Seek(0);
 
             currentImage.SetSource(stream);
+        }
+
+        private void WorklistButton_Click(object sender, RoutedEventArgs e)
+        {
+            WorklistFlyout.ShowAt(WorklistButton);
+        }
+
+        private void ConnectButton_Click(object sender, RoutedEventArgs e)
+        {
+            ConnectFlyout.ShowAt(ConnectButton);
+        }
+
+        private void SaveDeviceButton_Click(object sender, RoutedEventArgs e)
+        {
+            if ((DeviceNameBox.Text != "") && (DeviceAddressBox.Text != ""))
+            {
+                App.settings.Values["devicelist"] += DeviceNameBox.Text + "|" + DeviceAddressBox.Text + ";";
+                LoadDeviceList();
+            }
+        }
+
+        private void LoadDeviceList()
+        {
+            List<Device> Devices = new List<Device>();
+            Device defaultDevice = null;
+            var list = (App.settings.Values["devicelist"]).ToString().Split(';');
+            
+            foreach (var l in list)
+            {
+                if (l.Contains("|"))
+                {
+                    var pair = l.Split('|');
+                    Device d = new Device { Name = pair[0], IPAddress = pair[1] };
+                    if ((d.IPAddress == App.settings.Values["deviceaddress"].ToString()) && (d.Name == App.settings.Values["devicename"].ToString()))
+                    {
+                        defaultDevice = d;
+                    }
+                    Devices.Add(d);
+                }
+            }
+
+            DeviceList.ItemsSource = Devices;
+
+            if (defaultDevice != null) DeviceList.SelectedItem = defaultDevice;
+        }
+
+        private void DeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            Device d = (Device)DeviceList.SelectedItem;
+            App.settings.Values["devicename"] = d.Name;
+            App.settings.Values["deviceaddress"] = d.IPAddress;
+            Connect();
+            SendStudyListCommand();
         }
     }
 }

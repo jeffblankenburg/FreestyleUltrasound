@@ -12,26 +12,75 @@
             <ColumnDefinition Width="300" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
+        
         <TextBlock x:Name="ErrorBox" Grid.Column="1" VerticalAlignment="Top" />
-        <ListBox x:Name="StudyList" SelectionChanged="StudyList_SelectionChanged">
-            <ListBox.ItemTemplate>
-                <DataTemplate>
-                    <StackPanel>
-                        <TextBlock Text="{Binding PatientName}" />
-                        <TextBlock Text="{Binding TimeStamp}" FontSize="12" />
-                    </StackPanel>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
-        <StackPanel x:Name="ImagePanel" Orientation="Horizontal">
+        <StackPanel>
+            <TextBlock x:Name="DeviceTitle" FontSize="25" Margin="5"/>
+            <ListBox x:Name="StudyList" SelectionChanged="StudyList_SelectionChanged">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <StackPanel>
+                            <TextBlock Text="{Binding PatientName}" />
+                            <TextBlock Text="{Binding TimeStamp}" FontSize="12" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </StackPanel>
+        
+        <StackPanel x:Name="ImagePanel" Orientation="Horizontal" Grid.Column="1" Height="200">
             
         </StackPanel>
     </Grid>
     <Page.BottomAppBar>
-        <AppBar>
+        <AppBar IsOpen="True">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                <AppBarButton x:Name="WorklistButton" Icon="AddFriend" Label="worklist">
-                    <Flyout>
+                <AppBarButton x:Name="ConnectButton" Icon="Remote" Label="connect" Click="ConnectButton_Click">
+                    <Flyout x:Name="ConnectFlyout">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="200" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Connect to a Freestyle" FontSize="20" />
+                            <ListBox Grid.Row="1" x:Name="DeviceList" SelectionChanged="DeviceList_SelectionChanged">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="{Binding Name}" />
+                                            <TextBlock Text=" (" />
+                                            <TextBlock Text="{Binding IPAddress}" />
+                                            <TextBlock Text=")" />
+                                        </StackPanel>
+                                        
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="2*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <TextBlock Text="Name" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Text="IP Address" VerticalAlignment="Center" />
+                                <TextBox x:Name="DeviceNameBox" Grid.Column="1" />
+                                <TextBox x:Name="DeviceAddressBox" Grid.Column="1" Grid.Row="1" />
+                                <Button x:Name="SaveDeviceButton" Content="Add Device" Grid.Column="1" Grid.Row="2" HorizontalAlignment="Right" Click="SaveDeviceButton_Click" />
+                            </Grid>
+                        </Grid>
+                    </Flyout>
+                </AppBarButton>
+                <AppBarButton x:Name="WorklistButton" Icon="AddFriend" Label="worklist" Click="WorklistButton_Click">
+                    <Flyout x:Name="WorklistFlyout">
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="75" />
