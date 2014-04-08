@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -11,6 +12,7 @@ using Windows.Foundation.Collections;
 using Windows.Networking;
 using Windows.Networking.Sockets;
 using Windows.Storage.Streams;
+using Windows.UI;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Controls.Primitives;
@@ -34,6 +36,7 @@ namespace FreestyleUltrasound
         DataWriter StudyListWriter;
         DataReader AllImagesReader;
         DataWriter AllImagesWriter;
+        DataWriter WorkListWriter;
         StringBuilder sb = new StringBuilder();
         List<BitmapImage> currentImages = new List<BitmapImage>();
         BitmapImage currentImage = new BitmapImage();
@@ -65,6 +68,7 @@ namespace FreestyleUltrasound
                 socket = new StreamSocket();
                 HostName hostname = new HostName(App.settings.Values["deviceaddress"].ToString());
                 await socket.ConnectAsync(hostname, "5104");
+                //socket.Control.KeepAlive = true;
                 DeviceTitle.Text = App.settings.Values["devicename"].ToString() + " (" + App.settings.Values["deviceaddress"].ToString() + ")";
             }
             catch (Exception ex)
@@ -326,7 +330,96 @@ namespace FreestyleUltrasound
             App.settings.Values["devicename"] = d.Name;
             App.settings.Values["deviceaddress"] = d.IPAddress;
             Connect();
-            SendStudyListCommand();
+            if (socket != null) SendStudyListCommand();
+        }
+
+        private async void SaveWorklistButton_Click(object sender, RoutedEventArgs e)
+        {
+            bool ShouldSaveWorklist = true;
+            
+            if (FirstNameBox.Text == "")
+            {
+                FirstNameBox.Background = new SolidColorBrush(Colors.Red);
+                ShouldSaveWorklist = false;
+            }
+            if (LastNameBox.Text == "")
+            {
+                LastNameBox.Background = new SolidColorBrush(Colors.Red);
+                ShouldSaveWorklist = false;
+            }
+            if (IDBox.Text == "")
+            {
+                IDBox.Background = new SolidColorBrush(Colors.Red);
+                ShouldSaveWorklist = false;
+            }
+
+
+            if (ShouldSaveWorklist)
+            {
+                string worklistXML = "WORKLIST";
+                worklistXML += "<DCM_00100010>" + LastNameBox.Text + "^" + FirstNameBox.Text + "</DCM_00100010>";
+                worklistXML += "<DCM_00100020>" + IDBox.Text + "</DCM_00100020>";
+                worklistXML += "<DCM_00100030>" + DateBox.Date.ToString("yyyyMMdd", null as DateTimeFormatInfo) + "</DCM_00100030>";
+                worklistXML += "<DCM_00100040>" + GetGenderCode() + "</DCM_00100040>";
+
+                WorkListWriter = new DataWriter(socket.OutputStream);
+
+                WorkListWriter.WriteString(worklistXML);
+                await WorkListWriter.StoreAsync();
+            }
+
+
+        }
+
+        private void MaleButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetGenderButtons(1);
+        }
+
+        private string GetGenderCode()
+        {
+            if (FemaleButton.Opacity == 1) return "F";
+            else return "M";
+        }
+
+        private void SetGenderButtons(int p)
+        {
+            switch (p)
+            {
+                case 0:
+                    FemaleButton.Opacity = 1;
+                    MaleButton.Opacity = .4;
+                    break;
+                case 1:
+                    FemaleButton.Opacity = .4;
+                    MaleButton.Opacity = 1;
+                    break;
+            }
+        }
+
+        private void FemaleButton_Click(object sender, RoutedEventArgs e)
+        {
+            SetGenderButtons(0);
+        }
+
+        private void FirstNameBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            RemoveRed((TextBox)sender);
+        }
+
+        private void RemoveRed(TextBox sender)
+        {
+            sender.Background = new SolidColorBrush(Colors.White);
+        }
+
+        private void LastNameBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            RemoveRed((TextBox)sender);
+        }
+
+        private void IDBox_GotFocus(object sender, RoutedEventArgs e)
+        {
+            RemoveRed((TextBox)sender);
         }
     }
 }

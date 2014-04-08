@@ -12,7 +12,7 @@
             <ColumnDefinition Width="300" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        
+
         <TextBlock x:Name="ErrorBox" Grid.Column="1" VerticalAlignment="Top" />
         <StackPanel>
             <TextBlock x:Name="DeviceTitle" FontSize="25" Margin="5"/>
@@ -27,9 +27,9 @@
                 </ListBox.ItemTemplate>
             </ListBox>
         </StackPanel>
-        
-        <StackPanel x:Name="ImagePanel" Orientation="Horizontal" Grid.Column="1" Height="200">
-            
+
+        <StackPanel x:Name="ImagePanel" Orientation="Horizontal" VerticalAlignment="Top" Grid.Column="1" Height="200">
+
         </StackPanel>
     </Grid>
     <Page.BottomAppBar>
@@ -56,7 +56,7 @@
                                             <TextBlock Text="{Binding IPAddress}" />
                                             <TextBlock Text=")" />
                                         </StackPanel>
-                                        
+
                                     </DataTemplate>
                                 </ListBox.ItemTemplate>
                             </ListBox>
@@ -90,7 +90,7 @@
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="400" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="Add New Worklist Item" FontSize="20" />
+                            <TextBlock Text="Add New Worklist Item" FontSize="25" Margin="0,0,0,10" />
                             <Grid Grid.Row="1" >
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -100,20 +100,25 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="4*" />
+                                    <ColumnDefinition Width="16*" />
+                                    <ColumnDefinition Width="11*" />
+                                    <ColumnDefinition Width="53*"/>
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Row="0" Text="First Name" FontSize="15" />
-                                <TextBlock Grid.Row="1" Text="Last Name" FontSize="15" />
-                                <TextBlock Grid.Row="2" Text="ID" FontSize="15" />
-                                <TextBlock Grid.Row="3" Text="Gender" FontSize="15" />
-                                <TextBlock Grid.Row="4" Text="Birthdate" FontSize="15" />
-                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="FirstNameBox" />
-                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="LastNameBox" />
-                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="IDBox" />
-                                <DatePicker Grid.Row="4" Grid.Column="1" />
+                                <TextBlock Grid.Row="0" Text="First Name" FontSize="15" VerticalAlignment="Center" Margin="0,7" />
+                                <TextBlock Grid.Row="1" Text="Last Name" FontSize="15" VerticalAlignment="Center" Margin="0,7" />
+                                <TextBlock Grid.Row="2" Text="ID" FontSize="15" VerticalAlignment="Center" Margin="0,7" />
+                                <TextBlock Grid.Row="3" Text="Gender" FontSize="15" VerticalAlignment="Center" Margin="0,8" />
+                                <TextBlock Grid.Row="4" Text="Birthdate" FontSize="15" VerticalAlignment="Center" Margin="0,7" />
+                                <TextBox Grid.Row="0" Grid.Column="1" x:Name="FirstNameBox" Grid.ColumnSpan="2" GotFocus="FirstNameBox_GotFocus" />
+                                <TextBox Grid.Row="1" Grid.Column="1" x:Name="LastNameBox" Grid.ColumnSpan="2" GotFocus="LastNameBox_GotFocus" />
+                                <TextBox Grid.Row="2" Grid.Column="1" x:Name="IDBox" Grid.ColumnSpan="2" GotFocus="IDBox_GotFocus" />
+                                <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Grid.ColumnSpan="2" >
+                                    <Button x:Name="MaleButton" Content="Male" Opacity=".4" Click="MaleButton_Click" />
+                                    <Button x:Name="FemaleButton" Content="Female" Opacity=".4" Click="FemaleButton_Click" />
+                                </StackPanel>
+                                <DatePicker x:Name="DateBox" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" />
                             </Grid>
-                            <Button Grid.Row="2" x:Name="SaveWorklistButton" HorizontalAlignment="Right" Content="Save To Worklist" />
+                            <Button Grid.Row="2" x:Name="SaveWorklistButton" HorizontalAlignment="Right" Content="Save To Worklist" Click="SaveWorklistButton_Click" Margin="0,10,0,0" />
                         </Grid>
                     </Flyout>
                 </AppBarButton>
