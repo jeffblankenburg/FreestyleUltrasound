@@ -360,7 +360,7 @@ namespace FreestyleUltrasound
                 worklistXML += "<DCM_00100010>" + LastNameBox.Text + "^" + FirstNameBox.Text + "</DCM_00100010>";
                 worklistXML += "<DCM_00100020>" + IDBox.Text + "</DCM_00100020>";
                 worklistXML += "<DCM_00100030>" + DateBox.Date.ToString("yyyyMMdd", null as DateTimeFormatInfo) + "</DCM_00100030>";
-                worklistXML += "<DCM_00100040>" + GetGenderCode() + "</DCM_00100040>";
+                worklistXML += "<DCM_00100040>" + GetGenderCode() + "</DCM_00100040>\n";
 
                 WorkListWriter = new DataWriter(socket.OutputStream);
 
