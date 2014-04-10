@@ -14,5 +14,9 @@ namespace FreestyleUltrasound
         public string Name { get; set; }
         [DataMember]
         public string IPAddress { get; set; }
+        [DataMember]
+        public string PIN { get; set; }
+        [DataMember]
+        public string GUID { get; set; }
     }
 }

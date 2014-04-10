@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Foundation;
@@ -31,11 +32,14 @@ namespace FreestyleUltrasound
     /// </summary>
     public sealed partial class MainPage : Page
     {
+        DispatcherTimer Timer = new DispatcherTimer();
         StreamSocket socket;
-        DataReader StudyListReader;
-        DataWriter StudyListWriter;
-        DataReader AllImagesReader;
-        DataWriter AllImagesWriter;
+        DataReader Reader;
+        DataWriter Writer;
+        bool IsConnected = false;
+        string FileHeader = "";
+
+
         DataWriter WorkListWriter;
         StringBuilder sb = new StringBuilder();
         List<BitmapImage> currentImages = new List<BitmapImage>();
@@ -46,13 +50,12 @@ namespace FreestyleUltrasound
         bool ShouldStudyListKeepLooping = true;
         bool ShouldAllImagesKeepLooping = true;
         bool IsGettingImages = false;
+        DateTime TimeNow;
+        
         
         public MainPage()
         {
             this.InitializeComponent();
-
-            //FreestyleFinder();
-            //Connect();
             LoadDeviceList();
         }
 
@@ -61,53 +64,127 @@ namespace FreestyleUltrasound
             
         }
 
-        private async void Connect()
+        private void Debug(string s)
         {
+            DebugConsole.Text += s + "\n";
+        }
+
+        private void StartTimer()
+        {
+            Debug("Start Timer");
+            Timer.Interval = new TimeSpan(0, 0, 0, 2);
+            Timer.Tick += Timer_Tick;
+            TimeNow = DateTime.Now;
+            Timer.Start();
+        }
+
+        void Timer_Tick(object sender, object e)
+        {
+            EndTimer();
+        }
+
+        private void EndTimer()
+        {
+            Timer.Stop();
+            Debug("Timer took " + (DateTime.Now - TimeNow).TotalSeconds.ToString() + " seconds");
+        }
+
+        private async Task ConnectToSelectedDevice()
+        {
+            IsConnected = false;
+            Debug("Connecting");
+
+            socket = new StreamSocket();
+            string IPAddress = App.settings.Values["deviceaddress"].ToString();
+            HostName hostname = new HostName(IPAddress);
+
+            CancellationTokenSource cts = new CancellationTokenSource();
+
             try
             {
-                socket = new StreamSocket();
-                HostName hostname = new HostName(App.settings.Values["deviceaddress"].ToString());
-                await socket.ConnectAsync(hostname, "5104");
-                //socket.Control.KeepAlive = true;
-                DeviceTitle.Text = App.settings.Values["devicename"].ToString() + " (" + App.settings.Values["deviceaddress"].ToString() + ")";
+                //Debug("Setting timeout");
+                //cts.CancelAfter(2000);
+                //Debug("Attempting connection");
+                //Task task = socket.ConnectAsync(hostname, "5104").AsTask(cts.Token);
+                //task.Wait();
+                //task.Run();
+                //Debug("Connected");
+                //IsConnected = true;
+
+
+
+
+                Debug("Setting timeout");
+                cts.CancelAfter(2000);
+                Debug("Attempting connection");
+                await socket.ConnectAsync(hostname, "5104").AsTask(cts.Token);
+                Debug("Connected");
+                IsConnected = true;
+                
             }
-            catch (Exception ex)
+            catch (TaskCanceledException ex)
             {
-                ErrorBox.Text = SocketError.GetStatus(ex.HResult).ToString();
-            }
-                        
+                Debug("Connection Failed - Device Not Found");
+                IsConnected = false;
+                ErrorBox.Text = "Connection Failed - Device Not Found";
+            }        
+        }
+
+        private void WriteDeviceTitle()
+        {
+            Debug("Writing device title - " + App.settings.Values["devicename"].ToString() + " (" + App.settings.Values["deviceaddress"].ToString() + ")");
+            DeviceTitle.Text = App.settings.Values["devicename"].ToString() + " (" + App.settings.Values["deviceaddress"].ToString() + ")";
         }
 
         private async void SendStudyListCommand()
         {
-            StudyListReader = new DataReader(socket.InputStream);
-            StudyListWriter = new DataWriter(socket.OutputStream);
-
-            StudyListWriter.WriteString("STUDYLIST\n");
-            await StudyListWriter.StoreAsync();
-
-            StudyListReader.InputStreamOptions = InputStreamOptions.Partial;
-
-
-            while (ShouldStudyListKeepLooping)
+            Debug("Sending Study List Command");
+            if (!IsConnected)
             {
-                GetStudyListData();
-            }
+                await ConnectToSelectedDevice();
+                if (IsConnected)
+                {
+                    Reader = new DataReader(socket.InputStream);
+                    Writer = new DataWriter(socket.OutputStream);
 
-            if (ErrorBox.Text == String.Empty)
-            {
-                ShowStudyListData();
+                    Writer.WriteString("STUDYLIST\n");
+                    await Writer.StoreAsync();
+                    Debug("STUDYLIST COMMAND");
+                    Reader.InputStreamOptions = InputStreamOptions.Partial;
+
+
+                    while (ShouldStudyListKeepLooping)
+                    {
+                        GetStudyListData();
+                    }
+
+                    if (ErrorBox.Text == String.Empty)
+                    {
+                        ShowStudyListData();
+                    }
+                }
+                CloseConnection();
             }
+        }
+
+        private void CloseConnection()
+        {
+            Debug("Disposing of socket.");
+            socket.Dispose();
+            IsConnected = false;
+            Debug("Not Connected");
         }
 
         private void GetStudyListData()
         {
+            Debug("Getting Study List Data");
             try
             {
-                IAsyncOperation<uint> task = StudyListReader.LoadAsync(1024);
+                IAsyncOperation<uint> task = Reader.LoadAsync(1024);
                 task.AsTask().Wait();
                 counter = task.GetResults();
-                sb.Append(StudyListReader.ReadString(counter));
+                Debug("Got StudyList Data - (" + counter + " bytes)");
+                sb.Append(Reader.ReadString(counter));
             }
             catch (Exception ex)
             {
@@ -135,6 +212,7 @@ namespace FreestyleUltrasound
                                         TimeStamp = new DateTime(Int32.Parse(study.Element("DCM_00080020").Value.Substring(0, 4)), Int32.Parse(study.Element("DCM_00080020").Value.Substring(4, 2)), Int32.Parse(study.Element("DCM_00080020").Value.Substring(6, 2)), Int32.Parse(study.Element("DCM_00080030").Value.Substring(0, 2)), Int32.Parse(study.Element("DCM_00080030").Value.Substring(2, 2)), 0)
                                     }).ToList();
             StudyList.ItemsSource = Studies;
+            WriteDeviceTitle();
         }
 
         private void StudyList_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -146,64 +224,85 @@ namespace FreestyleUltrasound
 
         private async void SendAllImagesCommand(Study study)
         {
-            currentImages = new List<BitmapImage>();
-            if (!IsGettingImages)
+            Debug("\nSending All Images Command");
+            if (!IsConnected)
             {
-                IsGettingImages = true;
-                AllImagesReader = new DataReader(socket.InputStream);
-                AllImagesWriter = new DataWriter(socket.OutputStream);
-
-                AllImagesWriter.WriteString("ALLIMAGES " + study.StudyInstanceUID + "\n");
-                await AllImagesWriter.StoreAsync();
-
-                AllImagesReader.InputStreamOptions = InputStreamOptions.Partial;
-
-
-                while (ShouldAllImagesKeepLooping)
+                await ConnectToSelectedDevice();
+                if (IsConnected)
                 {
-                    string header = GetAllImagesHeader();
-                    imagebytearray = new byte[0];
-                    string imagename = header.Substring(0, 8);
-                    currentbytes = UInt32.Parse(header.Substring(8, 8).ToString(), System.Globalization.NumberStyles.HexNumber);
-
-                    if (imagename.Contains(".jpg"))
+                    currentImages = new List<BitmapImage>();
+                    if (!IsGettingImages)
                     {
-                        while ((currentbytes > 0) && (ShouldAllImagesKeepLooping))
+                        IsGettingImages = true;
+                        Reader = new DataReader(socket.InputStream);
+                        Writer = new DataWriter(socket.OutputStream);
+
+                        Writer.WriteString("ALLIMAGES " + study.StudyInstanceUID + "\n");
+                        await Writer.StoreAsync();
+                        Debug("ALLIMAGES " + study.StudyInstanceUID);
+                        Reader.InputStreamOptions = InputStreamOptions.Partial;
+
+
+                        while (ShouldAllImagesKeepLooping)
                         {
-                            currentbytes = GetAllImagesData(currentbytes);
+                            GetAllImagesHeader();
+                            if (FileHeader.Length != 16)
+                            {
+                                ShouldAllImagesKeepLooping = false;
+                                Debug("Image Header Invalid - " + FileHeader);
+                                //return;
+                            }
+                            else
+                            {
+                                imagebytearray = new byte[0];
+                                string imagename = FileHeader.Substring(0, 8);
+                                currentbytes = UInt32.Parse(FileHeader.Substring(8, 8).ToString(), System.Globalization.NumberStyles.HexNumber);
+
+                                if (imagename.Contains(".jpg"))
+                                {
+                                    while ((currentbytes > 0) && (ShouldAllImagesKeepLooping))
+                                    {
+                                        currentbytes = GetAllImagesData(currentbytes);
+                                    }
+
+                                    if (imagename.Contains(".mov"))
+                                    {
+
+                                    }
+                                    else if (imagename.Contains(".jpg"))
+                                    {
+                                        ByteArrayToBitmapImage(imagebytearray);
+                                        currentImages.Add(currentImage);
+                                    }
+                                }
+                                else
+                                {
+                                    ShouldAllImagesKeepLooping = false;
+                                }
+                            }
+                            
                         }
 
-                        if (imagename.Contains(".mov"))
+                        if (ErrorBox.Text == String.Empty)
                         {
+                            ShowAllImagesData();
+                            ShouldAllImagesKeepLooping = true;
+                        }
 
-                        }
-                        else if (imagename.Contains(".jpg"))
-                        {
-                            ByteArrayToBitmapImage(imagebytearray);
-                            currentImages.Add(currentImage);
-                        }
-                    }
-                    else
-                    {
-                        ShouldAllImagesKeepLooping = false;
+                        IsGettingImages = false;
                     }
                 }
-
-                if (ErrorBox.Text == String.Empty)
-                {
-                    ShowAllImagesData();
-                    ShouldAllImagesKeepLooping = true;
-                }
-
-                IsGettingImages = false;
             }
+            CloseConnection();
         }
 
         private void ShowAllImagesData()
         {
+            Debug("Showing All Images Data");
             ImagePanel.Children.Clear();
             foreach (BitmapImage i in currentImages)
             {
+                Debug("Writing Image");
                 Image j = new Image();
                 ImageSource s = i;
                 j.Source = s;
@@ -212,24 +311,31 @@ namespace FreestyleUltrasound
             
         }
 
-        private string GetAllImagesHeader()
+        private void GetAllImagesHeader()
         {
-            string header = "";
-            
+            Debug("Getting Image Header");
+            FileHeader = "";
             try
             {
-                IAsyncOperation<uint> task = AllImagesReader.LoadAsync(16);
+                IAsyncOperation<uint> task = Reader.LoadAsync(16);
                 task.AsTask().Wait();
                 counter = task.GetResults();
-                header = AllImagesReader.ReadString(counter);
+                //counter = await Reader.LoadAsync(16);
+                FileHeader = Reader.ReadString(counter);
+                Debug("Got Image Header");
+                if (FileHeader == "Connected")
+                {
+                    Debug("FileHeader == Connected");
+                    Debug("Calling GetAllImagesHeader() Again");
+                    GetAllImagesHeader();
+                }
             }
             catch (Exception ex)
             {
                 ErrorBox.Text = ex.Message.ToString();
                 ShouldAllImagesKeepLooping = false;
+                Debug("Failed to get image header");
             }
-
-            return header;
         }
 
         private uint GetAllImagesData(uint bytes)
@@ -241,11 +347,11 @@ namespace FreestyleUltrasound
             {
                 uint x = 16384;
                 if (currentbytes < x) x = currentbytes;
-                IAsyncOperation<uint> task = AllImagesReader.LoadAsync(x);
+                IAsyncOperation<uint> task = Reader.LoadAsync(x);
                 task.AsTask().Wait();
                 bytecounter = task.GetResults();
                 y = new byte[bytecounter];
-                AllImagesReader.ReadBytes(y);
+                Reader.ReadBytes(y);
                 imagebytearray = MergeByteArrays(imagebytearray, y);
             }
             catch (Exception ex)
@@ -301,6 +407,7 @@ namespace FreestyleUltrasound
 
         private void LoadDeviceList()
         {
+            Debug("Loading Device List");
             List<Device> Devices = new List<Device>();
             Device defaultDevice = null;
             var list = (App.settings.Values["devicelist"]).ToString().Split(';');
@@ -329,8 +436,10 @@ namespace FreestyleUltrasound
             Device d = (Device)DeviceList.SelectedItem;
             App.settings.Values["devicename"] = d.Name;
             App.settings.Values["deviceaddress"] = d.IPAddress;
-            Connect();
-            if (socket != null) SendStudyListCommand();
+            App.settings.Values["devicepin"] = d.PIN;
+            App.settings.Values["devicetoken"] = d.GUID;
+            //ConnectToSelectedDevice(true);
+            SendStudyListCommand();
         }
 
         private async void SaveWorklistButton_Click(object sender, RoutedEventArgs e)
