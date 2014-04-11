@@ -177,7 +177,7 @@ namespace FreestyleUltrasound
 
         private void GetStudyListData()
         {
-            Debug("Getting Study List Data");
+            //Debug("Getting Study List Data");
             try
             {
                 IAsyncOperation<uint> task = Reader.LoadAsync(1024);
@@ -465,16 +465,21 @@ namespace FreestyleUltrasound
 
             if (ShouldSaveWorklist)
             {
+                await ConnectToSelectedDevice();
+                //Debug("WORKLIST");
                 string worklistXML = "WORKLIST";
                 worklistXML += "<DCM_00100010>" + LastNameBox.Text + "^" + FirstNameBox.Text + "</DCM_00100010>";
                 worklistXML += "<DCM_00100020>" + IDBox.Text + "</DCM_00100020>";
                 worklistXML += "<DCM_00100030>" + DateBox.Date.ToString("yyyyMMdd", null as DateTimeFormatInfo) + "</DCM_00100030>";
                 worklistXML += "<DCM_00100040>" + GetGenderCode() + "</DCM_00100040>\n";
-
+                Debug(worklistXML);
                 WorkListWriter = new DataWriter(socket.OutputStream);
 
                 WorkListWriter.WriteString(worklistXML);
+                Debug("Writing Worklist Command");
                 await WorkListWriter.StoreAsync();
+                Debug("Worklist completed.");
+                CloseConnection();
             }
 
 
